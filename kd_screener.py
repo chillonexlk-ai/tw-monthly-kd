@@ -6,7 +6,13 @@ from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-from FinMind.Data import DataLoader
+try:
+    from FinMind.data import DataLoader
+except ImportError:
+    try:
+        from FinMind import DataLoader
+    except ImportError:
+        from FinMind.Data import DataLoader
 
 TOKEN = os.environ.get("FINMIND_TOKEN", "")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "")

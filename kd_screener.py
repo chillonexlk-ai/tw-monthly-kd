@@ -19,6 +19,19 @@ TOKEN = os.environ.get("FINMIND_TOKEN", "").strip()
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "").strip()
 GCP_SA_KEY_BASE64 = os.environ.get("GCP_SA_KEY_BASE64", "").strip()
 
+def fetch_daily_data(dl, sid, start_date):
+    """
+    相容 FinMind 不同版本的股價取得方法
+    """
+    try:
+        if hasattr(dl, 'taiwan_stock_daily'):
+            return dl.taiwan_stock_daily(stock_id=sid, start_date=start_date)
+        elif hasattr(dl, 'get_data'):
+            return dl.get_data(dataset='TaiwanStockPrice', data_id=sid, start_date=start_date)
+    except Exception:
+        pass
+    return pd.DataFrame()
+
 def calculate_kd(df_month, n=9):
     if len(df_month) < n + 1:
         return None
@@ -61,13 +74,15 @@ def get_monthly_bars(df_daily):
 def test_single_stock(dl, sid="2330", sname="台積電"):
     today = datetime.now()
     start_date = (today - timedelta(days=600)).strftime('%Y-%m-%d')
-    df_daily = dl.taiwan_stock_price(stock_id=sid, start_date=start_date)
+    df_daily = fetch_daily_data(dl, sid, start_date)
     if df_daily is not None and not df_daily.empty:
         df_m = get_monthly_bars(df_daily)
         df_kd = calculate_kd(df_m)
         if df_kd is not None:
             last3 = df_kd[['date', 'close', 'K', 'D']].tail(3).to_dict('records')
-            print(f"【單股測試】{sid} {sname} 最近三期月KD: {last3}")
+            print(f"【單股測試成功】{sid} {sname} 最近三期月KD: {last3}")
+    else:
+        print(f"【單股測試失敗】無法取得 {sid} 的股價資料")
 
 def scan_all():
     dl = DataLoader()
@@ -91,7 +106,7 @@ def scan_all():
         sid = str(row['stock_id'])
         sname = str(row['stock_name'])
         try:
-            df_daily = dl.taiwan_stock_price(stock_id=sid, start_date=start_date)
+            df_daily = fetch_daily_data(dl, sid, start_date)
             if df_daily is None or df_daily.empty or len(df_daily) < 40:
                 return
 
@@ -110,10 +125,8 @@ def scan_all():
             k_curr, d_curr = float(curr_row['K']), float(curr_row['D'])
             month_str = str(curr_row['date'])
 
-            # 黃金交叉判定
             if k_prev <= d_prev and k_curr > d_curr:
                 golden_list.append([sid, sname, k_curr, d_curr, month_str])
-            # 死亡交叉判定
             elif k_prev >= d_prev and k_curr < d_curr:
                 death_list.append([sid, sname, k_curr, d_curr, month_str])
 
@@ -150,7 +163,7 @@ def write_sheets(golden, death):
             print(f"成功寫入【{tab_name}】分頁共 {len(rows)} 筆標的！")
             ws.update(values=header + rows, range_name=f"A1:E{len(rows)+1}")
         else:
-            print(f"【{tab_name}】分頁本月交叉數為 0，寫入標題與提示行。")
+            print(f"【{tab_name}】分頁無交叉標的，寫入標題與提示行。")
             ws.update(values=header + [["-", "本月無最新交叉標的", "-", "-", "-"]], range_name="A1:E2")
 
     update_tab("黃金", golden)
@@ -161,7 +174,7 @@ if __name__ == '__main__':
     g, d = scan_all()
     print(f"篩選完成：黃金交叉 {len(g)} 檔，死亡交叉 {len(d)} 檔。")
     if g:
-        print(f"黃金交叉前 3 檔範例: {g[:3]}")
+        print(f"黃金交叉範例（前 3 檔）: {g[:3]}")
     if d:
-        print(f"死亡交叉前 3 檔範例: {d[:3]}")
+        print(f"死亡交叉範例（前 3 檔）: {d[:3]}")
     write_sheets(g, d)

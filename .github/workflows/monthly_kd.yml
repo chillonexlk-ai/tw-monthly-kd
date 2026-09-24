@@ -1,0 +1,30 @@
+name: Monthly KD Screener
+
+on:
+  schedule:
+    # 台灣時間每月 28-31 號晚上 21:30 (即 UTC 13:30) 自動觸發
+    - cron: '30 13 28-31 * *'
+  workflow_dispatch: # 支援在網頁上隨時手動點擊執行
+
+jobs:
+  run-screener:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 檢出專案代碼
+        uses: actions/checkout@v4
+
+      - name: 安裝 Python 環境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: 安裝依賴庫
+        run: pip install -r requirements.txt
+
+      - name: 執行月KD運算與寫入
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GCP_SA_KEY_BASE64: ${{ secrets.GCP_SA_KEY_BASE64 }}
+        run: python kd_screener.py

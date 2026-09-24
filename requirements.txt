@@ -1,0 +1,5 @@
+pandas
+numpy
+gspread
+google-auth
+FinMind

@@ -2,10 +2,10 @@ name: Monthly KD Screener
 
 on:
   schedule:
-    # 台灣時間每月 1 號早上 09:00（即 UTC 01:00）自動觸發
-    - cron: '0 1 1 * *'
-  workflow_dispatch: # 保留網頁手動點擊執行按鈕
-
+    # 台灣時間每月 1 號早上 09:17 (UTC 01:17) 自動觸發，避開整點與15分排隊高峰
+    - cron: '17 1 1 * *'
+  workflow_dispatch: # 支援在 GitHub 網頁上手動點擊執行
+  
 jobs:
   run-screener:
     runs-on: ubuntu-latest
